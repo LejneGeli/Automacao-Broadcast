@@ -280,16 +280,18 @@ def montar_json_unnichat(nome: str, timestamp: int, tag_gatilho: str) -> dict:
 
 
 # ─── CRONOGRAMA ───────────────────────────────────────────────────────
-OFFSETS = {1: 0, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 7: 2, 8: 3}
+OFFSETS = {1: 0, 2: 1, "2.1": 1, 3: 1, 4: 2, 5: 2, "5.1": 2, 6: 2, 7: 2, 8: 3}
 H_MAP = {
-    1: (10, 30, "Segunda"),
-    2: (8,  0,  "Terça"),
-    3: (19, 0,  "Terça"),
-    4: (7,  40, "Quarta"),
-    5: (12, 0,  "Quarta"),
-    6: (18, 0,  "Quarta"),
-    7: (19, 50, "Quarta"),
-    8: (10, 30, "Quinta"),
+    1:     (10, 30, "Segunda"),
+    2:     (8,  0,  "Terça"),
+    "2.1": (16, 0,  "Terça"),
+    3:     (19, 0,  "Terça"),
+    4:     (7,  40, "Quarta"),
+    5:     (12, 0,  "Quarta"),
+    "5.1": (15, 0,  "Quarta"),
+    6:     (18, 0,  "Quarta"),
+    7:     (19, 50, "Quarta"),
+    8:     (10, 30, "Quinta"),
 }
 
 
@@ -311,9 +313,9 @@ st.markdown("""
 
 # Cronograma visual
 st.markdown("**Cronograma de Fluxos**")
-cols = st.columns(8)
-for f_num, (h, m, dia) in H_MAP.items():
-    with cols[f_num - 1]:
+cols = st.columns(10)
+for col_idx, (f_num, (h, m, dia)) in enumerate(H_MAP.items()):
+    with cols[col_idx]:
         st.markdown(f"""
         <div class="horario-card">
             <div class="fluxo">F{f_num}</div>
@@ -353,12 +355,17 @@ with col_cfg:
             with col_b:
                 fluxo_sel = st.selectbox(
                     "⚡ Fluxo",
-                    ["Todos", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"]
+                    ["Todos", "F1", "F2", "F2.1", "F3", "F4", "F5", "F5.1", "F6", "F7", "F8"]
                 )
 
             if st.button("🚀 Gerar Pacote ZIP"):
                 cursos_alvo = [c for c in lista if c["nome"] in cursos_sel] if cursos_sel else lista
-                fluxos_alvo = range(1, 9) if fluxo_sel == "Todos" else [int(fluxo_sel[1])]
+                if fluxo_sel == "Todos":
+                    fluxos_alvo = list(H_MAP.keys())
+                elif "." in fluxo_sel:
+                    fluxos_alvo = [fluxo_sel[1:]]  # ex: "F2.1" -> "2.1"
+                else:
+                    fluxos_alvo = [int(fluxo_sel[1])]
 
                 total = len(cursos_alvo) * len(list(fluxos_alvo))
                 progresso = st.progress(0, text="Gerando arquivos...")
@@ -375,7 +382,7 @@ with col_cfg:
                             )
                             dt += timedelta(minutes=(idx * 2))
 
-                            nome_final = f"{data_ref} - F{f_num} - {c_data['nome']}"
+                            nome_final = f"{data_ref} - F{f_num} - {c_data['nome']}"  # f_num pode ser int ou str
                             tag = c_data["tags"].get(f_num, "")
                             json_obj = montar_json_unnichat(nome_final, int(dt.timestamp() * 1000), tag)
 
