@@ -69,7 +69,7 @@ st.markdown("""
 
     .horario-card .dia { color: #4d9de0; font-weight: 700; }
     .horario-card .hora { color: #f0f0f0; font-size: 1rem; margin: 0.1rem 0; }
-    .horario-card .fluxo { color: #666; }
+    .horario-card .fluxo { color: #fff; font-weight: 700; font-size: 0.85rem; background: #1e5fad; display: inline-block; padding: 0.1rem 0.45rem; border-radius: 4px; margin-bottom: 0.3rem; }
 
     div[data-testid="stButton"] > button {
         background: #1e5fad !important;
