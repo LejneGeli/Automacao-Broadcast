@@ -2,11 +2,14 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import json
 import zipfile
 import io
 import random
 import string
+
+BRASILIA = ZoneInfo("America/Sao_Paulo")
 
 # ─── CONFIG DA PÁGINA ────────────────────────────────────────────────
 st.set_page_config(
@@ -120,6 +123,51 @@ st.markdown("""
     }
 
     label { color: #aaa !important; font-size: 0.85rem !important; }
+
+    .steps-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 1rem 0 1.5rem 0;
+        flex-wrap: wrap;
+    }
+
+    .step {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #0f1e35;
+        border: 1px solid #1a3a5c;
+        border-radius: 6px;
+        padding: 0.4rem 0.8rem;
+    }
+
+    .step-num {
+        background: #1e5fad;
+        color: #fff;
+        font-family: 'Space Mono', monospace;
+        font-size: 0.7rem;
+        font-weight: 700;
+        width: 1.3rem;
+        height: 1.3rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .step-label {
+        color: #aaa;
+        font-size: 0.78rem;
+        font-family: 'DM Sans', sans-serif;
+    }
+
+    .step-arrow {
+        color: #1a3a5c;
+        font-size: 1rem;
+        font-weight: 700;
+    }
 
     .badge {
         display: inline-block;
@@ -248,7 +296,18 @@ H_MAP = {
 # ─── INTERFACE ────────────────────────────────────────────────────────
 
 st.markdown('<div class="main-header">📦 CESS · Gerador de Broadcast</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">Geração automática de pacotes JSON para importação no UnniChat</div>', unsafe_allow_html=True)
+
+st.markdown("""
+<div class="steps-bar">
+  <div class="step"><span class="step-num">1</span><span class="step-label">Digite a data da segunda-feira</span></div>
+  <div class="step-arrow">→</div>
+  <div class="step"><span class="step-num">2</span><span class="step-label">Selecione os cursos e o fluxo</span></div>
+  <div class="step-arrow">→</div>
+  <div class="step"><span class="step-num">3</span><span class="step-label">Clique em Gerar Pacote ZIP</span></div>
+  <div class="step-arrow">→</div>
+  <div class="step"><span class="step-num">4</span><span class="step-label">Baixe e importe no UnniChat</span></div>
+</div>
+""", unsafe_allow_html=True)
 
 # Cronograma visual
 st.markdown("**Cronograma de Fluxos**")
@@ -311,8 +370,8 @@ with col_cfg:
                         for f_num in fluxos_alvo:
                             h, m, _ = H_MAP[f_num]
                             d_ref, m_ref = map(int, data_ref.split("/"))
-                            dt = datetime(2026, m_ref, d_ref) + timedelta(
-                                days=OFFSETS[f_num], hours=h, minutes=m
+                            dt = datetime(2026, m_ref, d_ref, h, m, tzinfo=BRASILIA) + timedelta(
+                                days=OFFSETS[f_num]
                             )
                             dt += timedelta(minutes=(idx * 2))
 
