@@ -36,7 +36,7 @@ st.markdown("""
         font-weight: 700;
         letter-spacing: -1px;
         color: #f0f0f0;
-        border-bottom: 2px solid #25d366;
+        border-bottom: 2px solid #1e5fad;
         padding-bottom: 0.5rem;
         margin-bottom: 0.25rem;
     }
@@ -48,17 +48,6 @@ st.markdown("""
         font-family: 'Space Mono', monospace;
     }
 
-    .info-box {
-        background: #1a1a1a;
-        border: 1px solid #2a2a2a;
-        border-left: 3px solid #25d366;
-        border-radius: 6px;
-        padding: 1rem 1.2rem;
-        margin: 1rem 0;
-        font-size: 0.875rem;
-        color: #aaa;
-    }
-
     .horario-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -67,21 +56,21 @@ st.markdown("""
     }
 
     .horario-card {
-        background: #1a1a1a;
-        border: 1px solid #2a2a2a;
+        background: #0f1e35;
+        border: 1px solid #1a3a5c;
         border-radius: 6px;
         padding: 0.6rem 0.8rem;
         font-family: 'Space Mono', monospace;
         font-size: 0.75rem;
     }
 
-    .horario-card .dia { color: #25d366; font-weight: 700; }
+    .horario-card .dia { color: #4d9de0; font-weight: 700; }
     .horario-card .hora { color: #f0f0f0; font-size: 1rem; margin: 0.1rem 0; }
     .horario-card .fluxo { color: #666; }
 
     div[data-testid="stButton"] > button {
-        background: #25d366 !important;
-        color: #000 !important;
+        background: #1e5fad !important;
+        color: #fff !important;
         font-family: 'Space Mono', monospace !important;
         font-weight: 700 !important;
         border: none !important;
@@ -98,9 +87,9 @@ st.markdown("""
     }
 
     div[data-testid="stDownloadButton"] > button {
-        background: #1a1a1a !important;
-        color: #25d366 !important;
-        border: 1px solid #25d366 !important;
+        background: #0f1e35 !important;
+        color: #4d9de0 !important;
+        border: 1px solid #1e5fad !important;
         font-family: 'Space Mono', monospace !important;
         font-weight: 700 !important;
         border-radius: 6px !important;
@@ -109,34 +98,34 @@ st.markdown("""
     }
 
     .stTextInput > div > div > input {
-        background: #1a1a1a !important;
-        border: 1px solid #2a2a2a !important;
+        background: #0f1e35 !important;
+        border: 1px solid #1a3a5c !important;
         color: #f0f0f0 !important;
         border-radius: 6px !important;
         font-family: 'Space Mono', monospace !important;
     }
 
     .stTextInput > div > div > input:focus {
-        border-color: #25d366 !important;
-        box-shadow: 0 0 0 1px #25d366 !important;
+        border-color: #1e5fad !important;
+        box-shadow: 0 0 0 1px #1e5fad !important;
     }
 
     .stMultiSelect > div, .stSelectbox > div {
-        background: #1a1a1a !important;
+        background: #0f1e35 !important;
     }
 
     .stSuccess {
-        background: #0d2b1a !important;
-        border-color: #25d366 !important;
+        background: #0a1a2e !important;
+        border-color: #1e5fad !important;
     }
 
     label { color: #aaa !important; font-size: 0.85rem !important; }
 
     .badge {
         display: inline-block;
-        background: #1a1a1a;
-        border: 1px solid #25d366;
-        color: #25d366;
+        background: #0f1e35;
+        border: 1px solid #1e5fad;
+        color: #4d9de0;
         font-family: 'Space Mono', monospace;
         font-size: 0.7rem;
         padding: 0.15rem 0.5rem;
@@ -348,10 +337,4 @@ with col_cfg:
         else:
             st.warning(f"⚠️ Nenhum curso encontrado para a semana de **{data_ref}**. Verifique a data e a planilha.")
 
-# Info box no rodapé
-st.markdown("""
-<div class="info-box">
-    <strong>Como funciona:</strong> O sistema lê a planilha "Informações Webhook", calcula os timestamps exatos de cada fluxo 
-    e gera arquivos JSON prontos para importar no UnniChat. Cada curso recebe um intervalo de 2 minutos para evitar conflitos.
-</div>
-""", unsafe_allow_html=True)
+
