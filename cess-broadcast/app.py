@@ -234,6 +234,7 @@ def buscar_cursos_planilha(semana_alvo: str):
 
 
 def montar_json_unnichat(nome: str, timestamp: int, tag_gatilho: str) -> dict:
+    """Estrutura padrão (F1–F8): adiciona tag no perfil do aluno."""
     id_root = gerar_id_aleatorio()
     id_action = gerar_id_aleatorio()
     return {
@@ -275,6 +276,56 @@ def montar_json_unnichat(nome: str, timestamp: int, tag_gatilho: str) -> dict:
                     "type": {"color": "transparent", "tag": "action", "id": "action", "icon": ""}
                 }]
             }
+        }
+    }
+
+
+def montar_json_foward(nome: str, timestamp: int) -> dict:
+    """Estrutura fowardAutomation (F2.1 e F5.1): encaminha para outra automação."""
+    id_root = gerar_id_aleatorio()
+    id_foward = gerar_id_aleatorio()
+    return {
+        "status": "draft",
+        "sendType": "scheduled",
+        "name": nome,
+        "templateId": "",
+        "firstStepType": "node",
+        "bodyParameters": [],
+        "urlButtonParameters": [],
+        "headerParameters": [],
+        "audit": {
+            "userId": "cess_manual_gen",
+            "userEmail": "automacao@cess.com.br"
+        },
+        "sendAt": timestamp,
+        "automation": {
+            "name": nome,
+            "category": "automation",
+            "status": "idle",
+            "connectionType": "whatsapp",
+            "node": {
+                "id": id_root,
+                "type": {"id": id_root, "tag": "init", "color": "transparent", "icon": "init"},
+                "sonId": id_foward,
+                "pos": "{\"x\":-84.52275666567903,\"y\":2.315691963443271}",
+                "triggers": [{"interaction": "broadcast"}],
+                "nodes": [{
+                    "id": id_foward,
+                    "pos": "{\"x\":226.38069856306106,\"y\":67.68179143894525}",
+                    "type": {
+                        "id": "fowardAutomation",
+                        "tag": "fowardAutomation",
+                        "color": "transparent",
+                        "icon": ""
+                    },
+                    "fowardAutomation": {
+                        "automationType": "whatsapp",
+                        "automationId": "",
+                        "automationName": ""
+                    }
+                }]
+            },
+            "customFieldsToCreate": {}
         }
     }
 
@@ -382,9 +433,12 @@ with col_cfg:
                             )
                             dt += timedelta(minutes=(idx * 2))
 
-                            nome_final = f"{data_ref} - F{f_num} - {c_data['nome']}"  # f_num pode ser int ou str
-                            tag = c_data["tags"].get(f_num, "")
-                            json_obj = montar_json_unnichat(nome_final, int(dt.timestamp() * 1000), tag)
+                            nome_final = f"{data_ref} - F{f_num} - {c_data['nome']}"
+                            if f_num in ("2.1", "5.1"):
+                                json_obj = montar_json_foward(nome_final, int(dt.timestamp() * 1000))
+                            else:
+                                tag = c_data["tags"].get(f_num, "")
+                                json_obj = montar_json_unnichat(nome_final, int(dt.timestamp() * 1000), tag)
 
                             nome_arq = nome_final.replace("/", "_")
                             zf.writestr(f"Fluxo_{f_num}/{nome_arq}.json", json.dumps(json_obj, indent=2, ensure_ascii=False))
