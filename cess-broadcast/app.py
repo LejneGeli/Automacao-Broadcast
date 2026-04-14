@@ -330,8 +330,117 @@ def montar_json_foward(nome: str, timestamp: int) -> dict:
     }
 
 
+def montar_json_sc(nome: str, timestamp: int) -> dict:
+    """Estrutura SC (SC1, SC2, SC3): randomizer + delays + fowardAutomation."""
+    id_root     = gerar_id_aleatorio()
+    id_rand     = gerar_id_aleatorio()
+    id_delay1   = gerar_id_aleatorio()  # delay 1s
+    id_delay2   = gerar_id_aleatorio()  # delay 37s
+    id_delay3   = gerar_id_aleatorio()  # delay 74s
+    id_foward   = gerar_id_aleatorio()
+    # IDs das variações do randomizer
+    v_ids = [gerar_id_aleatorio() for _ in range(6)]
+
+    return {
+        "status": "draft",
+        "sendType": "scheduled",
+        "name": nome,
+        "templateId": "",
+        "firstStepType": "node",
+        "bodyParameters": [],
+        "urlButtonParameters": [],
+        "headerParameters": [],
+        "audit": {
+            "userId": "cess_manual_gen",
+            "userEmail": "automacao@cess.com.br"
+        },
+        "sendAt": timestamp,
+        "automation": {
+            "name": nome,
+            "category": "automation",
+            "status": "idle",
+            "connectionType": "whatsapp",
+            "node": {
+                "id": id_root,
+                "type": {"id": "FvqYATbUWkycagVBc7np", "tag": "init", "color": "transparent", "icon": "init"},
+                "sonId": id_rand,
+                "pos": "{\"x\":-142.85694973433232,\"y\":0}",
+                "triggers": [{"interaction": "broadcast"}],
+                "nodes": [
+                    {
+                        "id": id_rand,
+                        "pos": "{\"x\":224.68482789256495,\"y\":-23.1596685596694}",
+                        "type": {"id": "randomizer", "tag": "randomizer", "color": "transparent", "icon": ""},
+                        "randomizer": {
+                            "randomPathAlways": True,
+                            "variations": [
+                                {"id": v_ids[0], "value": 17, "sonId": id_delay1},
+                                {"id": v_ids[1], "value": 17, "sonId": id_delay2},
+                                {"id": v_ids[2], "value": 17, "sonId": id_delay3},
+                                {"id": v_ids[3], "value": 17},
+                                {"id": v_ids[4], "value": 17},
+                                {"id": v_ids[5], "value": 15}
+                            ]
+                        }
+                    },
+                    {
+                        "id": id_delay1,
+                        "sonId": id_foward,
+                        "pos": "{\"x\":635.0418438703014,\"y\":-318.0380288731563}",
+                        "type": {"id": "delay", "tag": "delay", "color": "transparent", "icon": ""},
+                        "delay": {
+                            "type": "seconds", "time": 1,
+                            "isComercialInterval": False,
+                            "sendMessagesIntervalRangeType": "minutes",
+                            "sendMessagesIntervalRange": [10, 201]
+                        }
+                    },
+                    {
+                        "id": id_delay2,
+                        "sonId": id_foward,
+                        "pos": "{\"x\":641.003547142757,\"y\":15.968382275369265}",
+                        "type": {"id": "delay", "tag": "delay", "color": "transparent", "icon": ""},
+                        "delay": {
+                            "type": "seconds", "time": 37,
+                            "isComercialInterval": False,
+                            "commercialTimeRangeMinutes": False,
+                            "sendMessagesIntervalRangeType": "minutes",
+                            "sendMessagesIntervalRange": [10, 201]
+                        }
+                    },
+                    {
+                        "id": id_delay3,
+                        "sonId": id_foward,
+                        "pos": "{\"x\":647.493201624593,\"y\":376.41889199723454}",
+                        "type": {"id": "delay", "tag": "delay", "color": "transparent", "icon": ""},
+                        "delay": {
+                            "type": "seconds", "time": 74,
+                            "isComercialInterval": False,
+                            "commercialTimeRangeMinutes": False,
+                            "sendMessagesIntervalRangeType": "minutes",
+                            "sendMessagesIntervalRange": [10, 201]
+                        }
+                    },
+                    {
+                        "id": id_foward,
+                        "pos": "{\"x\":1154.1893313384387,\"y\":63.04434286060467}",
+                        "type": {"id": "fowardAutomation", "tag": "fowardAutomation", "color": "transparent", "icon": ""},
+                        "fowardAutomation": {
+                            "automationType": "whatsapp",
+                            "automationId": "",
+                            "automationName": ""
+                        }
+                    }
+                ]
+            },
+            "customFieldsToCreate": {}
+        }
+    }
+
+
 # ─── CRONOGRAMA ───────────────────────────────────────────────────────
-OFFSETS = {1: 0, 2: 1, "2.1": 1, 3: 1, 4: 2, 5: 2, "5.1": 2, 6: 2, 7: 2, 8: 3}
+OFFSETS = {1: 0, 2: 1, "2.1": 1, 3: 1, 4: 2, 5: 2, "5.1": 2, 6: 2, 7: 2, 8: 3,
+           "SC1": 8, "SC2": 17, "SC3": 24}
 H_MAP = {
     1:     (10, 30, "Segunda"),
     2:     (8,  0,  "Terça"),
@@ -343,6 +452,9 @@ H_MAP = {
     6:     (18, 0,  "Quarta"),
     7:     (19, 50, "Quarta"),
     8:     (10, 30, "Quinta"),
+    "SC1": (9,  0,  "Terça +1sem"),
+    "SC2": (9,  0,  "Quinta +2sem"),
+    "SC3": (9,  30, "Quinta +3sem"),
 }
 
 
@@ -364,7 +476,7 @@ st.markdown("""
 
 # Cronograma visual
 st.markdown("**Cronograma de Fluxos**")
-cols = st.columns(10)
+cols = st.columns(13)
 for col_idx, (f_num, (h, m, dia)) in enumerate(H_MAP.items()):
     with cols[col_idx]:
         st.markdown(f"""
@@ -406,15 +518,17 @@ with col_cfg:
             with col_b:
                 fluxo_sel = st.selectbox(
                     "⚡ Fluxo",
-                    ["Todos", "F1", "F2", "F2.1", "F3", "F4", "F5", "F5.1", "F6", "F7", "F8"]
+                    ["Todos", "F1", "F2", "F2.1", "F3", "F4", "F5", "F5.1", "F6", "F7", "F8", "SC1", "SC2", "SC3"]
                 )
 
             if st.button("🚀 Gerar Pacote ZIP"):
                 cursos_alvo = [c for c in lista if c["nome"] in cursos_sel] if cursos_sel else lista
                 if fluxo_sel == "Todos":
                     fluxos_alvo = list(H_MAP.keys())
+                elif fluxo_sel.startswith("SC"):
+                    fluxos_alvo = [fluxo_sel]        # ex: "SC1"
                 elif "." in fluxo_sel:
-                    fluxos_alvo = [fluxo_sel[1:]]  # ex: "F2.1" -> "2.1"
+                    fluxos_alvo = [fluxo_sel[1:]]    # ex: "F2.1" -> "2.1"
                 else:
                     fluxos_alvo = [int(fluxo_sel[1])]
 
@@ -434,7 +548,10 @@ with col_cfg:
                             dt += timedelta(minutes=(idx * 2))
 
                             nome_final = f"{data_ref} - F{f_num} - {c_data['nome']}"
-                            if f_num in ("2.1", "5.1"):
+                            if f_num in ("SC1", "SC2", "SC3"):
+                                nome_final = f"{f_num} {data_ref} - {c_data['nome']}"
+                                json_obj = montar_json_sc(nome_final, int(dt.timestamp() * 1000))
+                            elif f_num in ("2.1", "5.1"):
                                 json_obj = montar_json_foward(nome_final, int(dt.timestamp() * 1000))
                             else:
                                 tag = c_data["tags"].get(f_num, "")
