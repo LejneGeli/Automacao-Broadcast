@@ -9,6 +9,7 @@ import io
 import random
 import string
 
+#só para teste
 BRASILIA = ZoneInfo("America/Sao_Paulo")
 
 # ─── CONFIG DA PÁGINA ────────────────────────────────────────────────

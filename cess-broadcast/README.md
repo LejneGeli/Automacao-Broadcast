@@ -4,23 +4,15 @@ App Streamlit para geração automática de pacotes JSON para o UnniChat.
 
 ---
 
-## 🚀 Deploy no Streamlit Cloud (recomendado)
+## 📋 Como funciona
 
-### 1. Suba o projeto para o GitHub
-Coloque estes arquivos num repositório (pode ser privado):
-```
-├── app.py
-├── requirements.txt
-└── .streamlit/
-    └── secrets.toml.example   ← só de exemplo, NÃO suba o real
-```
+1. Informe a data da segunda-feira da semana
+2. O sistema lê a planilha "Informações Webhook" (aba "Cursos 2026")
+3. Selecione cursos e fluxos desejados
+4. Clique em **Gerar Pacote ZIP**
+5. Baixe e importe no UnniChat
 
-> ⚠️ **NUNCA** suba o `secrets.toml` real nem o `credentials.json` para o GitHub.
-
-### 2. Crie o app no Streamlit Cloud
-- Acesse: https://share.streamlit.io
-- Conecte seu repositório GitHub
-- Defina o arquivo principal como `app.py`
+---
 
 ### 3. Configure as credenciais (Secrets)
 No painel do Streamlit Cloud:
@@ -52,14 +44,7 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Para rodar localmente com credenciais, crie o arquivo `.streamlit/secrets.toml` com o conteúdo acima (baseado no exemplo).
+Para rodar localmente com credenciais, crie o arquivo `.streamlit/secrets.toml` com o conteúdo acima.
 
 ---
 
-## 📋 Como funciona
-
-1. Informe a data da segunda-feira da semana
-2. O sistema lê a planilha "Informações Webhook" (aba "Cursos 2026")
-3. Selecione cursos e fluxos desejados
-4. Clique em **Gerar Pacote ZIP**
-5. Baixe e importe no UnniChat
