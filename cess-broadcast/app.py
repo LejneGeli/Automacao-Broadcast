@@ -9,7 +9,6 @@ import io
 import random
 import string
 
-#só para teste
 BRASILIA = ZoneInfo("America/Sao_Paulo")
 
 # ─── CONFIG DA PÁGINA ────────────────────────────────────────────────
@@ -331,6 +330,81 @@ def montar_json_foward(nome: str, timestamp: int) -> dict:
     }
 
 
+def intervalo_retroativo(total_cursos: int) -> int:
+    """Retorna o intervalo em segundos entre disparos com base na quantidade de cursos."""
+    if total_cursos <= 20:
+        return 120   # 2min
+    elif total_cursos <= 30:
+        return 60    # 1min
+    elif total_cursos <= 50:
+        return 45    # 45s
+    else:
+        return 40    # 40s
+
+
+def montar_json_retomada(nome: str, timestamp: int, data_disparo: str) -> dict:
+    """Estrutura Retroativo: add_tag 'Super Chance - Retroativo DD/MM' → fowardAutomation."""
+    id_root   = gerar_id_aleatorio()
+    id_action = gerar_id_aleatorio()
+    id_foward = gerar_id_aleatorio()
+    tag = f"Super Chance - Retroativo {data_disparo}"
+    return {
+        "status": "draft",
+        "sendType": "scheduled",
+        "name": nome,
+        "templateId": "",
+        "firstStepType": "node",
+        "bodyParameters": [],
+        "urlButtonParameters": [],
+        "headerParameters": [],
+        "audit": {
+            "userId": "cess_manual_gen",
+            "userEmail": "automacao@cess.com.br"
+        },
+        "sendAt": timestamp,
+        "automation": {
+            "name": nome,
+            "category": "automation",
+            "status": "idle",
+            "connectionType": "whatsapp",
+            "node": {
+                "id": id_root,
+                "type": {"id": id_root, "tag": "init", "color": "transparent", "icon": "init"},
+                "sonId": id_action,
+                "pos": "{\"x\":-84.52275666567903,\"y\":2.315691963443271}",
+                "triggers": [{"interaction": "broadcast"}],
+                "nodes": [
+                    {
+                        "id": id_action,
+                        "sonId": id_foward,
+                        "pos": "{\"x\":226.38069856306106,\"y\":67.68179143894525}",
+                        "type": {"id": "action", "tag": "action", "color": "transparent", "icon": ""},
+                        "action": {
+                            "userResourceGroupSendRandomic": False,
+                            "unniiaAtributionOnly": False,
+                            "keepChatActive": False,
+                            "forceAttribution": False,
+                            "type": "add_tag",
+                            "tags": [tag]
+                        }
+                    },
+                    {
+                        "id": id_foward,
+                        "pos": "{\"x\":550.0,\"y\":67.68179143894525}",
+                        "type": {"id": "fowardAutomation", "tag": "fowardAutomation", "color": "transparent", "icon": ""},
+                        "fowardAutomation": {
+                            "automationType": "whatsapp",
+                            "automationId": "",
+                            "automationName": ""
+                        }
+                    }
+                ]
+            },
+            "customFieldsToCreate": {}
+        }
+    }
+
+
 def montar_json_sc(nome: str, timestamp: int) -> dict:
     """Estrutura SC (SC1, SC2, SC3): randomizer + delays + fowardAutomation."""
     id_root     = gerar_id_aleatorio()
@@ -490,89 +564,280 @@ for col_idx, (f_num, (h, m, dia)) in enumerate(H_MAP.items()):
 
 st.markdown("---")
 
-# Input principal
+# ── Session state ─────────────────────────────────────────────────────
+if "modo_retroativo" not in st.session_state:
+    st.session_state.modo_retroativo = False
+
+# ── Estilo do botão Retroativo ───────────────────────────────────────────
+st.markdown("""
+<style>
+.retroativo-btn > div[data-testid="stButton"] > button {
+    background: transparent !important;
+    color: #4d9de0 !important;
+    border: 1px solid #1e5fad !important;
+    font-family: 'Space Mono', monospace !important;
+    font-size: 0.72rem !important;
+    font-weight: 400 !important;
+    padding: 0.2rem 0.75rem !important;
+    width: auto !important;
+    min-height: unset !important;
+    line-height: 1.4 !important;
+    letter-spacing: 0.3px !important;
+    margin-top: 0.25rem !important;
+}
+.retroativo-btn > div[data-testid="stButton"] > button:hover {
+    background: #0f1e35 !important;
+    opacity: 1 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 col_in, col_cfg = st.columns([1, 2])
 
 with col_in:
-    data_ref = st.text_input(
-        "📅 Segunda-feira da semana",
-        placeholder="DD/MM  ex: 02/02",
-        help="Digite a data da segunda-feira da semana que deseja gerar."
-    )
+    # Campo de data — sempre presente
+    if st.session_state.modo_retroativo:
+        ret_busca = st.text_input(
+            "Nome da semana na planilha",
+            placeholder="ex: Retroativo - T 2025",
+            help="Digite o nome exato da semana como aparece na coluna B da planilha."
+        )
+        ret_data = st.text_input(
+            "Dia do disparo",
+            placeholder="DD/MM  ex: 15/07",
+            help="Data em que o Broadcast de Retroativo será disparado."
+        )
+        ret_hora = st.text_input(
+            "Horário inicial de disparo",
+            placeholder="HH:MM  ex: 12:00",
+            help="Horário do primeiro disparo. Os demais serão +2 min por curso."
+        )
+    else:
+        data_ref = st.text_input(
+            "Segunda-feira da semana",
+            placeholder="DD/MM  ex: 02/02",
+            help="Digite a data da segunda-feira da semana que deseja gerar."
+        )
+        ret_busca = ret_data = ret_hora = None
+
+    # Botão sempre por último na coluna esquerda
+    st.markdown('<div class="retroativo-btn">', unsafe_allow_html=True)
+    label_btn = "Cancelar Retroativo" if st.session_state.modo_retroativo else "Retroativo"
+    if st.button(label_btn, key="btn_retroativo"):
+        st.session_state.modo_retroativo = not st.session_state.modo_retroativo
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 with col_cfg:
-    if data_ref:
-        with st.spinner("🔍 Buscando cursos na planilha..."):
-            lista = buscar_cursos_planilha(data_ref)
+    # ── MODO RETOMADA ──────────────────────────────────────────────────
+    if st.session_state.modo_retroativo:
+        if ret_busca:
+            with st.spinner("Buscando cursos na planilha..."):
+                lista_ret = buscar_cursos_planilha(ret_busca)
 
-        if lista:
-            st.success(f"✅ {len(lista)} curso(s) encontrado(s) para a semana de **{data_ref}**")
-
-            col_a, col_b = st.columns(2)
-            with col_a:
-                nomes = [c["nome"] for c in lista]
-                cursos_sel = st.multiselect(
-                    "📚 Cursos (vazio = todos)",
-                    nomes,
+            if lista_ret:
+                st.success(f"✅ {len(lista_ret)} curso(s) encontrado(s) para **{ret_busca}**")
+                nomes_ret = [c["nome"] for c in lista_ret]
+                cursos_ret_sel = st.multiselect(
+                    "Cursos (vazio = todos)",
+                    nomes_ret,
                     help="Deixe em branco para incluir todos os cursos."
                 )
-            with col_b:
-                fluxo_sel = st.selectbox(
-                    "⚡ Fluxo",
-                    ["Todos", "F1", "F2", "F2.1", "F3", "F4", "F5", "F5.1", "F6", "F7", "F8", "SC1", "SC2", "SC3"]
-                )
 
-            if st.button("🚀 Gerar Pacote ZIP"):
-                cursos_alvo = [c for c in lista if c["nome"] in cursos_sel] if cursos_sel else lista
-                if fluxo_sel == "Todos":
-                    fluxos_alvo = list(H_MAP.keys())
-                elif fluxo_sel.startswith("SC"):
-                    fluxos_alvo = [fluxo_sel]        # ex: "SC1"
-                elif "." in fluxo_sel:
-                    fluxos_alvo = [fluxo_sel[1:]]    # ex: "F2.1" -> "2.1"
-                else:
-                    fluxos_alvo = [int(fluxo_sel[1])]
+                campos_ok = ret_data and ret_hora
+                if not campos_ok:
+                    st.info("Preencha o dia e o horário de disparo para gerar.")
 
-                total = len(cursos_alvo) * len(list(fluxos_alvo))
-                progresso = st.progress(0, text="Gerando arquivos...")
-                counter = 0
+                if campos_ok and st.button("Gerar Pacote ZIP — Retroativo"):
+                    try:
+                        d_ret, m_ret = map(int, ret_data.strip().split("/"))
+                        h_ret, min_ret = map(int, ret_hora.strip().split(":"))
+                    except ValueError:
+                        st.error("Formato inválido. Use DD/MM para a data e HH:MM para o horário.")
+                        st.stop()
 
-                zip_buffer = io.BytesIO()
-                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-                    for idx, c_data in enumerate(cursos_alvo):
-                        for f_num in fluxos_alvo:
-                            h, m, _ = H_MAP[f_num]
-                            d_ref, m_ref = map(int, data_ref.split("/"))
-                            dt = datetime(2026, m_ref, d_ref, h, m, tzinfo=BRASILIA) + timedelta(
-                                days=OFFSETS[f_num]
-                            )
-                            dt += timedelta(minutes=(idx * 2))
+                    cursos_alvo = [c for c in lista_ret if c["nome"] in cursos_ret_sel] if cursos_ret_sel else lista_ret
+                    total = len(cursos_alvo)
+                    intervalo_s = intervalo_retroativo(total)
 
-                            nome_final = f"{data_ref} - F{f_num} - {c_data['nome']}"
-                            if f_num in ("SC1", "SC2", "SC3"):
-                                nome_final = f"{f_num} {data_ref} - {c_data['nome']}"
-                                json_obj = montar_json_sc(nome_final, int(dt.timestamp() * 1000))
-                            elif f_num in ("2.1", "5.1"):
-                                json_obj = montar_json_foward(nome_final, int(dt.timestamp() * 1000))
-                            else:
-                                tag = c_data["tags"].get(f_num, "")
-                                json_obj = montar_json_unnichat(nome_final, int(dt.timestamp() * 1000), tag)
+                    # Info do intervalo aplicado
+                    if intervalo_s == 120:
+                        info_intervalo = "2min por curso (até 20 cursos)"
+                    elif intervalo_s == 60:
+                        info_intervalo = "1min por curso (21–30 cursos)"
+                    elif intervalo_s == 45:
+                        info_intervalo = "45s por curso (31–50 cursos)"
+                    else:
+                        info_intervalo = "40s por curso (mais de 50 cursos)"
+                    st.info(f"⏱ {total} curso(s) detectado(s) — intervalo aplicado: **{info_intervalo}**")
 
+                    progresso = st.progress(0, text="Gerando arquivos...")
+                    counter = 0
+                    zip_buffer = io.BytesIO()
+
+                    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                        for idx, c_data in enumerate(cursos_alvo):
+                            dt = datetime(2026, m_ret, d_ret, h_ret, min_ret, tzinfo=BRASILIA) + timedelta(seconds=(idx * intervalo_s))
+                            nome_final = f"Retroativo {ret_data} - {c_data['nome']}"
+                            json_obj = montar_json_retomada(nome_final, int(dt.timestamp() * 1000), ret_data)
                             nome_arq = nome_final.replace("/", "_")
-                            zf.writestr(f"Fluxo_{f_num}/{nome_arq}.json", json.dumps(json_obj, indent=2, ensure_ascii=False))
-
+                            zf.writestr(f"Retroativo/{nome_arq}.json", json.dumps(json_obj, indent=2, ensure_ascii=False))
                             counter += 1
                             progresso.progress(counter / total, text=f"Gerando: {nome_final}")
 
-                progresso.empty()
-                st.success(f"✅ {counter} arquivo(s) gerado(s) com sucesso!")
-                st.download_button(
-                    label="📥 Baixar ZIP para Importação",
-                    data=zip_buffer.getvalue(),
-                    file_name=f"Import_CESS_{data_ref.replace('/', '_')}.zip",
-                    mime="application/zip"
-                )
-        else:
-            st.warning(f"⚠️ Nenhum curso encontrado para a semana de **{data_ref}**. Verifique a data e a planilha.")
+                    progresso.empty()
+                    st.success(f"✅ {counter} arquivo(s) de Retroativo gerado(s) com sucesso!")
+                    st.download_button(
+                        label="Baixar ZIP para Importação",
+                        data=zip_buffer.getvalue(),
+                        file_name=f"Import_CESS_Retroativo_{ret_data.replace('/', '_')}.zip",
+                        mime="application/zip"
+                    )
+            else:
+                st.warning(f"⚠️ Nenhum curso encontrado para **{ret_busca}**. Verifique o nome na planilha.")
 
+    # ── MODO FLUXO NORMAL ──────────────────────────────────────────────
+    else:
+        if data_ref:
+            with st.spinner("Buscando cursos na planilha..."):
+                lista = buscar_cursos_planilha(data_ref)
+
+            if lista:
+                st.success(f"✅ {len(lista)} curso(s) encontrado(s) para a semana de **{data_ref}**")
+
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    nomes = [c["nome"] for c in lista]
+                    cursos_sel = st.multiselect(
+                        "Cursos (vazio = todos)",
+                        nomes,
+                        help="Deixe em branco para incluir todos os cursos."
+                    )
+                with col_b:
+                    fluxo_sel = st.selectbox(
+                        "Fluxo",
+                        ["Todos", "F1", "F2", "F2.1", "F3", "F4", "F5", "F5.1", "F6", "F7", "F8", "SC1", "SC2", "SC3"]
+                    )
+
+                if st.button("Gerar Pacote ZIP"):
+                    cursos_alvo = [c for c in lista if c["nome"] in cursos_sel] if cursos_sel else lista
+
+                    if fluxo_sel == "Todos":
+                        fluxos_alvo = list(H_MAP.keys())
+                    elif fluxo_sel.startswith("SC"):
+                        fluxos_alvo = [fluxo_sel]
+                    elif "." in fluxo_sel:
+                        fluxos_alvo = [fluxo_sel[1:]]
+                    else:
+                        fluxos_alvo = [int(fluxo_sel[1])]
+
+                    total = len(cursos_alvo) * len(list(fluxos_alvo))
+                    progresso = st.progress(0, text="Gerando arquivos...")
+                    counter = 0
+                    zip_buffer = io.BytesIO()
+
+                    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                        for idx, c_data in enumerate(cursos_alvo):
+                            for f_num in fluxos_alvo:
+                                h, m, _ = H_MAP[f_num]
+                                d_ref, m_ref = map(int, data_ref.split("/"))
+                                dt = datetime(2026, m_ref, d_ref, h, m, tzinfo=BRASILIA) + timedelta(days=OFFSETS[f_num])
+                                dt += timedelta(minutes=(idx * 2))
+
+                                nome_final = f"{data_ref} - F{f_num} - {c_data['nome']}"
+                                if f_num in ("SC1", "SC2", "SC3"):
+                                    nome_final = f"{f_num} {data_ref} - {c_data['nome']}"
+                                    json_obj = montar_json_sc(nome_final, int(dt.timestamp() * 1000))
+                                elif f_num in ("2.1", "5.1"):
+                                    json_obj = montar_json_foward(nome_final, int(dt.timestamp() * 1000))
+                                else:
+                                    tag = c_data["tags"].get(f_num, "")
+                                    json_obj = montar_json_unnichat(nome_final, int(dt.timestamp() * 1000), tag)
+
+                                nome_arq = nome_final.replace("/", "_")
+                                zf.writestr(f"Fluxo_{f_num}/{nome_arq}.json", json.dumps(json_obj, indent=2, ensure_ascii=False))
+                                counter += 1
+                                progresso.progress(counter / total, text=f"Gerando: {nome_final}")
+
+                    progresso.empty()
+                    st.success(f"✅ {counter} arquivo(s) gerado(s) com sucesso!")
+                    st.download_button(
+                        label="Baixar ZIP para Importação",
+                        data=zip_buffer.getvalue(),
+                        file_name=f"Import_CESS_{data_ref.replace('/', '_')}.zip",
+                        mime="application/zip"
+                    )
+            else:
+                st.warning(f"⚠️ Nenhum curso encontrado para a semana de **{data_ref}**. Verifique a data e a planilha.")
+        if data_ref:
+            with st.spinner("Buscando cursos na planilha..."):
+                lista = buscar_cursos_planilha(data_ref)
+
+            if lista:
+                st.success(f"✅ {len(lista)} curso(s) encontrado(s) para a semana de **{data_ref}**")
+
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    nomes = [c["nome"] for c in lista]
+                    cursos_sel = st.multiselect(
+                        "Cursos (vazio = todos)",
+                        nomes,
+                        help="Deixe em branco para incluir todos os cursos."
+                    )
+                with col_b:
+                    fluxo_sel = st.selectbox(
+                        "Fluxo",
+                        ["Todos", "F1", "F2", "F2.1", "F3", "F4", "F5", "F5.1", "F6", "F7", "F8", "SC1", "SC2", "SC3"]
+                    )
+
+                if st.button("Gerar Pacote ZIP"):
+                    cursos_alvo = [c for c in lista if c["nome"] in cursos_sel] if cursos_sel else lista
+
+                    if fluxo_sel == "Todos":
+                        fluxos_alvo = list(H_MAP.keys())
+                    elif fluxo_sel.startswith("SC"):
+                        fluxos_alvo = [fluxo_sel]
+                    elif "." in fluxo_sel:
+                        fluxos_alvo = [fluxo_sel[1:]]
+                    else:
+                        fluxos_alvo = [int(fluxo_sel[1])]
+
+                    total = len(cursos_alvo) * len(list(fluxos_alvo))
+                    progresso = st.progress(0, text="Gerando arquivos...")
+                    counter = 0
+                    zip_buffer = io.BytesIO()
+
+                    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                        for idx, c_data in enumerate(cursos_alvo):
+                            for f_num in fluxos_alvo:
+                                h, m, _ = H_MAP[f_num]
+                                d_ref, m_ref = map(int, data_ref.split("/"))
+                                dt = datetime(2026, m_ref, d_ref, h, m, tzinfo=BRASILIA) + timedelta(days=OFFSETS[f_num])
+                                dt += timedelta(minutes=(idx * 2))
+
+                                nome_final = f"{data_ref} - F{f_num} - {c_data['nome']}"
+                                if f_num in ("SC1", "SC2", "SC3"):
+                                    nome_final = f"{f_num} {data_ref} - {c_data['nome']}"
+                                    json_obj = montar_json_sc(nome_final, int(dt.timestamp() * 1000))
+                                elif f_num in ("2.1", "5.1"):
+                                    json_obj = montar_json_foward(nome_final, int(dt.timestamp() * 1000))
+                                else:
+                                    tag = c_data["tags"].get(f_num, "")
+                                    json_obj = montar_json_unnichat(nome_final, int(dt.timestamp() * 1000), tag)
+
+                                nome_arq = nome_final.replace("/", "_")
+                                zf.writestr(f"Fluxo_{f_num}/{nome_arq}.json", json.dumps(json_obj, indent=2, ensure_ascii=False))
+                                counter += 1
+                                progresso.progress(counter / total, text=f"Gerando: {nome_final}")
+
+                    progresso.empty()
+                    st.success(f"✅ {counter} arquivo(s) gerado(s) com sucesso!")
+                    st.download_button(
+                        label="Baixar ZIP para Importação",
+                        data=zip_buffer.getvalue(),
+                        file_name=f"Import_CESS_{data_ref.replace('/', '_')}.zip",
+                        mime="application/zip"
+                    )
+            else:
+                st.warning(f"⚠️ Nenhum curso encontrado para a semana de **{data_ref}**. Verifique a data e a planilha.")
 
