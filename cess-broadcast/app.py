@@ -552,7 +552,7 @@ st.markdown("""
 
 # Cronograma visual
 st.markdown("**Cronograma de Fluxos**")
-cols = st.columns(13)
+cols = st.columns(14)
 for col_idx, (f_num, (h, m, dia)) in enumerate(H_MAP.items()):
     with cols[col_idx]:
         st.markdown(f"""
