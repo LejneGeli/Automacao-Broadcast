@@ -557,7 +557,7 @@ for col_idx, (f_num, (h, m, dia)) in enumerate(H_MAP.items()):
     with cols[col_idx]:
         st.markdown(f"""
         <div class="horario-card">
-            <div class="fluxo">F{f_num}</div>
+            <div class="fluxo">{'F' + str(f_num) if isinstance(f_num, int) or f_num in ['2.1', '5.1'] else f_num}</div>
             <div class="hora">{h:02d}:{m:02d}</div>
             <div class="dia">{dia}</div>
         </div>
