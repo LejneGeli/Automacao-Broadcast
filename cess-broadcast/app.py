@@ -515,7 +515,7 @@ def montar_json_sc(nome: str, timestamp: int) -> dict:
 
 # ─── CRONOGRAMA ───────────────────────────────────────────────────────
 OFFSETS = {1: 0, 2: 1, "2.1": 1, 3: 1, 4: 2, 5: 2, "5.1": 2, 6: 2, 7: 2, 8: 3,
-           "SC1": 8, "SC2": 17, "SC3": 24}
+           "SC0": 3, "SC1": 8, "SC2": 17, "SC3": 24}
 H_MAP = {
     1:     (10, 30, "Segunda"),
     2:     (8,  0,  "Terça"),
@@ -527,6 +527,7 @@ H_MAP = {
     6:     (18, 0,  "Quarta"),
     7:     (19, 50, "Quarta"),
     8:     (10, 30, "Quinta"),
+    "SC0": (8, 0, "Quinta"),
     "SC1": (9,  0,  "Terça +1sem"),
     "SC2": (9,  0,  "Quinta +2sem"),
     "SC3": (9,  30, "Quinta +3sem"),
@@ -716,7 +717,7 @@ with col_cfg:
                 with col_b:
                     fluxo_sel = st.selectbox(
                         "Fluxo",
-                        ["Todos", "F1", "F2", "F2.1", "F3", "F4", "F5", "F5.1", "F6", "F7", "F8", "SC1", "SC2", "SC3"]
+                        ["Todos", "F1", "F2", "F2.1", "F3", "F4", "F5", "F5.1", "F6", "F7", "F8", "SC0", "SC1", "SC2", "SC3"]
                     )
 
                 if st.button("Gerar Pacote ZIP"):
@@ -745,7 +746,7 @@ with col_cfg:
                                 dt += timedelta(minutes=(idx * 2))
 
                                 nome_final = f"{data_ref} - F{f_num} - {c_data['nome']}"
-                                if f_num in ("SC1", "SC2", "SC3"):
+                                if f_num in ("SC0", "SC1", "SC2", "SC3"):
                                     nome_final = f"{f_num} {data_ref} - {c_data['nome']}"
                                     json_obj = montar_json_sc(nome_final, int(dt.timestamp() * 1000))
                                 elif f_num in ("2.1", "5.1"):
