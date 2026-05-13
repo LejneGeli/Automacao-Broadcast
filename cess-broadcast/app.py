@@ -202,6 +202,76 @@ def conectar_sheets():
     return gspread.authorize(creds)
 
 
+
+
+def _rgb_para_hex(bg: dict) -> str:
+    """Converte o RGB retornado pela API do Google Sheets para #RRGGBB."""
+    r = round(bg.get("red", 1) * 255)
+    g = round(bg.get("green", 1) * 255)
+    b = round(bg.get("blue", 1) * 255)
+    return f"#{r:02X}{g:02X}{b:02X}"
+
+
+def _buscar_cores_api(client, spreadsheet_id: str, range_str: str) -> list:
+    """Busca as cores de fundo de um intervalo usando a API v4 do Google Sheets."""
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}"
+    response = client.http_client.request(
+        "GET",
+        url,
+        params={
+            "ranges": range_str,
+            "fields": "sheets.data.rowData.values.effectiveFormat.backgroundColor",
+            "includeGridData": "true",
+        },
+    )
+    try:
+        return response.json()["sheets"][0]["data"][0].get("rowData", [])
+    except (KeyError, IndexError, ValueError):
+        return []
+
+
+def buscar_mapeamento_contas(client, spreadsheet_name: str) -> dict:
+    """
+    Lê as cores de D2:D5 da aba 'Como funciona?' e monta:
+    { '#RRGGBB': 'Conta_1', '#RRGGBB': 'Conta_2', ... }
+    """
+    spreadsheet = client.open(spreadsheet_name)
+    row_data = _buscar_cores_api(client, spreadsheet.id, "'Como funciona?'!D2:D5")
+
+    mapeamento = {}
+    for i, row in enumerate(row_data, start=1):
+        try:
+            bg = row["values"][0]["effectiveFormat"]["backgroundColor"]
+            hex_cor = _rgb_para_hex(bg)
+            if hex_cor != "#FFFFFF":
+                mapeamento[hex_cor] = f"Conta_{i}"
+        except (KeyError, IndexError, TypeError):
+            pass
+
+    return mapeamento
+
+
+def buscar_cores_linhas(client, spreadsheet_name: str, worksheet_name: str, linha_inicio_sheet: int, quantidade: int) -> list:
+    """Retorna as cores da coluna A nas linhas dos cursos encontrados."""
+    spreadsheet = client.open(spreadsheet_name)
+    linha_fim = linha_inicio_sheet + quantidade - 1
+    range_str = f"'{worksheet_name}'!A{linha_inicio_sheet}:A{linha_fim}"
+    row_data = _buscar_cores_api(client, spreadsheet.id, range_str)
+
+    cores = []
+    for row in row_data:
+        try:
+            bg = row["values"][0]["effectiveFormat"]["backgroundColor"]
+            hex_cor = _rgb_para_hex(bg)
+        except (KeyError, IndexError, TypeError):
+            hex_cor = "#FFFFFF"
+        cores.append(hex_cor)
+
+    while len(cores) < quantidade:
+        cores.append("#FFFFFF")
+
+    return cores[:quantidade]
+
 def buscar_cursos_planilha(semana_alvo: str):
     try:
         client = conectar_sheets()
@@ -216,6 +286,7 @@ def buscar_cursos_planilha(semana_alvo: str):
             return []
 
         cursos = []
+        indices_linhas = []
         for i in range(linha_data + 2, len(dados)):
             linha = dados[i]
             if not linha or not linha[0].strip():
@@ -226,6 +297,22 @@ def buscar_cursos_planilha(semana_alvo: str):
                 "nome": linha[0].strip(),
                 "tags": {f: linha[13 + f].strip() if len(linha) > 13 + f else "" for f in range(1, 9)}
             })
+            indices_linhas.append(i)
+
+        if cursos:
+            mapeamento_contas = buscar_mapeamento_contas(client, "Informações Webhook")
+            cores_linhas = buscar_cores_linhas(
+                client,
+                "Informações Webhook",
+                "Cursos 2026",
+                indices_linhas[0] + 1,
+                len(cursos),
+            )
+
+            for curso, cor in zip(cursos, cores_linhas):
+                curso["cor"] = cor
+                curso["conta"] = mapeamento_contas.get(cor, "Sem_Conta")
+
         return cursos
 
     except Exception as e:
@@ -677,12 +764,18 @@ with col_cfg:
                     zip_buffer = io.BytesIO()
 
                     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-                        for idx, c_data in enumerate(cursos_alvo):
-                            dt = datetime(2026, m_ret, d_ret, h_ret, min_ret, tzinfo=BRASILIA) + timedelta(seconds=(idx * intervalo_s))
+                        contadores_por_conta = {}
+                        for c_data in cursos_alvo:
+                            conta_pasta = c_data.get("conta", "Sem_Conta")
+                            contador_delay_conta = contadores_por_conta.get(conta_pasta, 0)
+
+                            dt = datetime(2026, m_ret, d_ret, h_ret, min_ret, tzinfo=BRASILIA) + timedelta(seconds=(contador_delay_conta * intervalo_s))
                             nome_final = f"Retroativo {ret_data} - {c_data['nome']}"
                             json_obj = montar_json_retomada(nome_final, int(dt.timestamp() * 1000), ret_data)
                             nome_arq = nome_final.replace("/", "_")
-                            zf.writestr(f"Retroativo/{nome_arq}.json", json.dumps(json_obj, indent=2, ensure_ascii=False))
+                            zf.writestr(f"Retroativo/{conta_pasta}/{nome_arq}.json", json.dumps(json_obj, indent=2, ensure_ascii=False))
+
+                            contadores_por_conta[conta_pasta] = contador_delay_conta + 1
                             counter += 1
                             progresso.progress(counter / total, text=f"Gerando: {nome_final}")
 
@@ -738,12 +831,19 @@ with col_cfg:
                     zip_buffer = io.BytesIO()
 
                     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-                        for idx, c_data in enumerate(cursos_alvo):
+                        contadores_por_fluxo_conta = {f_num: {} for f_num in fluxos_alvo}
+
+                        for c_data in cursos_alvo:
+                            conta_pasta = c_data.get("conta", "Sem_Conta")
+
                             for f_num in fluxos_alvo:
+                                contadores_conta = contadores_por_fluxo_conta[f_num]
+                                contador_delay_conta = contadores_conta.get(conta_pasta, 0)
+
                                 h, m, _ = H_MAP[f_num]
                                 d_ref, m_ref = map(int, data_ref.split("/"))
                                 dt = datetime(2026, m_ref, d_ref, h, m, tzinfo=BRASILIA) + timedelta(days=OFFSETS[f_num])
-                                dt += timedelta(minutes=(idx * 2))
+                                dt += timedelta(minutes=(contador_delay_conta * 2))
 
                                 nome_final = f"{data_ref} - F{f_num} - {c_data['nome']}"
                                 if f_num in ("SC0", "SC1", "SC2", "SC3"):
@@ -756,7 +856,9 @@ with col_cfg:
                                     json_obj = montar_json_unnichat(nome_final, int(dt.timestamp() * 1000), tag)
 
                                 nome_arq = nome_final.replace("/", "_")
-                                zf.writestr(f"Fluxo_{f_num}/{nome_arq}.json", json.dumps(json_obj, indent=2, ensure_ascii=False))
+                                zf.writestr(f"Fluxo_{f_num}/{conta_pasta}/{nome_arq}.json", json.dumps(json_obj, indent=2, ensure_ascii=False))
+
+                                contadores_conta[conta_pasta] = contador_delay_conta + 1
                                 counter += 1
                                 progresso.progress(counter / total, text=f"Gerando: {nome_final}")
 
