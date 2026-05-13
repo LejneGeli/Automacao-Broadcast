@@ -8,13 +8,19 @@ import zipfile
 import io
 import random
 import string
+import os
+from PIL import Image
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOGO_PATH = os.path.join(BASE_DIR, "logo-broadcast.png")
+FAVICON = Image.open(LOGO_PATH) if os.path.exists(LOGO_PATH) else "📦"
 
 BRASILIA = ZoneInfo("America/Sao_Paulo")
 
 # ─── CONFIG DA PÁGINA ────────────────────────────────────────────────
 st.set_page_config(
     page_title="CESS · Gerador de Broadcast",
-    page_icon="📦",
+    page_icon=FAVICON,
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -22,167 +28,276 @@ st.set_page_config(
 # ─── ESTILO CUSTOMIZADO ───────────────────────────────────────────────
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'DM Sans', sans-serif;
+    :root {
+        --bg:#05080f;
+        --panel:rgba(10,26,48,.84);
+        --line:rgba(61,151,255,.28);
+        --text:#f3f7ff;
+        --muted:#a8b8d8;
+        --blue:#2f9bff;
+        --purple:#6757ff;
     }
 
-    .stApp {
-        background: #0d0d0d;
-        color: #f0f0f0;
+    html, body, [data-testid="stAppViewContainer"] {
+        background:
+            radial-gradient(circle at 10% 88%, rgba(0,78,190,.34), transparent 19rem),
+            radial-gradient(circle at 55% 0%, rgba(27,102,255,.22), transparent 18rem),
+            radial-gradient(circle at 88% 12%, rgba(103,87,255,.20), transparent 20rem),
+            linear-gradient(135deg,#030508 0%,#07101f 42%,#020409 100%) !important;
+        color:var(--text);
+        font-family:'Inter',sans-serif;
     }
 
-    .main-header {
-        font-family: 'Space Mono', monospace;
-        font-size: 2rem;
-        font-weight: 700;
-        letter-spacing: -1px;
-        color: #f0f0f0;
-        border-bottom: 2px solid #1e5fad;
-        padding-bottom: 0.5rem;
-        margin-bottom: 0.25rem;
+    [data-testid="stHeader"], [data-testid="stToolbar"] { background:transparent !important; }
+
+    .block-container,
+    [data-testid="stMainBlockContainer"] {
+        max-width:1560px !important;
+        width: calc(100% - 5rem) !important;
+        padding:2.6rem 2.2rem 2.4rem !important;
+        margin:3.2rem auto 2.5rem auto !important;
+        position:relative;
+        z-index:1;
+        border:1px solid rgba(28,113,255,.35);
+        border-radius:22px;
+        background:rgba(3,10,22,.28);
+        box-shadow:0 0 46px rgba(0,91,255,.18), inset 0 0 70px rgba(10,88,180,.08);
     }
 
-    .sub-header {
-        color: #888;
-        font-size: 0.9rem;
-        margin-bottom: 2rem;
-        font-family: 'Space Mono', monospace;
+    .broadcast-panel {
+        width:100%;
+        padding:34px 40px 32px;
+        border:1px solid var(--line);
+        border-radius:20px;
+        background:
+            linear-gradient(180deg,rgba(15,41,73,.90),rgba(8,20,36,.84)),
+            repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 1px,transparent 1px 8px);
+        box-shadow:0 30px 90px rgba(0,0,0,.52), inset 0 1px 0 rgba(255,255,255,.06);
+        backdrop-filter:blur(14px);
+        margin-bottom:26px;
     }
 
-    .horario-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 0.5rem;
-        margin: 1rem 0;
+    .broadcast-top {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:22px;
+        margin-bottom:24px;
     }
 
-    .horario-card {
-        background: #0f1e35;
-        border: 1px solid #1a3a5c;
-        border-radius: 6px;
-        padding: 0.6rem 0.8rem;
-        font-family: 'Space Mono', monospace;
-        font-size: 0.75rem;
+    .broadcast-brand { display:flex; align-items:center; gap:18px; }
+    .broadcast-logo-wrap {
+        width:72px; height:72px; flex:0 0 72px;
+        display:flex; align-items:center; justify-content:center;
+        border-radius:14px;
+        background:rgba(255,255,255,.96);
+        box-shadow:0 0 24px rgba(47,155,255,.22);
+        overflow:hidden;
+    }
+    .broadcast-logo-wrap img {
+        width:58px; height:58px; object-fit:contain; display:block;
     }
 
-    .horario-card .dia { color: #4d9de0; font-weight: 700; }
-    .horario-card .hora { color: #f0f0f0; font-size: 1rem; margin: 0.1rem 0; }
-    .horario-card .fluxo { color: #fff; font-weight: 700; font-size: 0.85rem; background: #1e5fad; display: inline-block; padding: 0.1rem 0.45rem; border-radius: 4px; margin-bottom: 0.3rem; }
-
-    div[data-testid="stButton"] > button {
-        background: #1e5fad !important;
-        color: #fff !important;
-        font-family: 'Space Mono', monospace !important;
-        font-weight: 700 !important;
-        border: none !important;
-        border-radius: 6px !important;
-        padding: 0.6rem 1.5rem !important;
-        width: 100%;
-        font-size: 0.9rem !important;
-        letter-spacing: 0.5px !important;
-        transition: opacity 0.2s !important;
+    .broadcast-title {
+        font-size:2.28rem;
+        font-weight:800;
+        letter-spacing:-.045em;
+        margin:0;
+        line-height:1.05;
+        color:#f7fbff;
     }
 
-    div[data-testid="stButton"] > button:hover {
-        opacity: 0.85 !important;
+    .broadcast-subtitle { color:var(--muted); font-size:.94rem; margin-top:9px; }
+    .broadcast-badge {
+        border:1px solid rgba(77,159,255,.24);
+        background:rgba(5,12,25,.55);
+        color:#dceaff;
+        padding:8px 14px;
+        border-radius:999px;
+        font-size:.76rem;
+        font-weight:700;
+        white-space:nowrap;
     }
-
-    div[data-testid="stDownloadButton"] > button {
-        background: #0f1e35 !important;
-        color: #4d9de0 !important;
-        border: 1px solid #1e5fad !important;
-        font-family: 'Space Mono', monospace !important;
-        font-weight: 700 !important;
-        border-radius: 6px !important;
-        padding: 0.6rem 1.5rem !important;
-        width: 100%;
-    }
-
-    .stTextInput > div > div > input {
-        background: #0f1e35 !important;
-        border: 1px solid #1a3a5c !important;
-        color: #f0f0f0 !important;
-        border-radius: 6px !important;
-        font-family: 'Space Mono', monospace !important;
-    }
-
-    .stTextInput > div > div > input:focus {
-        border-color: #1e5fad !important;
-        box-shadow: 0 0 0 1px #1e5fad !important;
-    }
-
-    .stMultiSelect > div, .stSelectbox > div {
-        background: #0f1e35 !important;
-    }
-
-    .stSuccess {
-        background: #0a1a2e !important;
-        border-color: #1e5fad !important;
-    }
-
-    label { color: #aaa !important; font-size: 0.85rem !important; }
 
     .steps-bar {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin: 1rem 0 1.5rem 0;
-        flex-wrap: wrap;
+        display:grid;
+        grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;
+        align-items:center;
+        gap:12px;
+        padding:18px 20px;
+        border:1px solid rgba(73,150,255,.22);
+        border-radius:18px;
+        background:rgba(4,12,28,.38);
+        margin:1rem 0 0;
     }
-
     .step {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: #0f1e35;
-        border: 1px solid #1a3a5c;
-        border-radius: 6px;
-        padding: 0.4rem 0.8rem;
+        display:flex;
+        align-items:center;
+        gap:12px;
+        background:transparent;
+        border:0;
+        padding:0;
+        min-width:0;
     }
-
     .step-num {
-        background: #1e5fad;
-        color: #fff;
-        font-family: 'Space Mono', monospace;
-        font-size: 0.7rem;
-        font-weight: 700;
-        width: 1.3rem;
-        height: 1.3rem;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
+        background:linear-gradient(135deg,#2f9bff,#1749d7);
+        color:#fff;
+        font-size:.84rem;
+        font-weight:800;
+        width:34px;
+        height:34px;
+        border-radius:50%;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        flex-shrink:0;
+        box-shadow:0 0 20px rgba(47,155,255,.38);
+    }
+    .step-label { color:#c5d5ef; font-size:.86rem; font-weight:600; }
+    .step-arrow { color:rgba(132,169,232,.45); font-size:1.35rem; font-weight:700; }
+
+    .schedule-shell {
+        border:1px solid rgba(73,150,255,.18);
+        border-radius:20px;
+        background:rgba(4,12,28,.34);
+        padding:26px 24px 22px;
+        margin:20px 0 24px;
+    }
+    .schedule-title {
+        color:#f2f7ff;
+        font-size:1.05rem;
+        font-weight:800;
+        margin-bottom:18px;
+        display:flex;
+        gap:10px;
+        align-items:center;
+    }
+    .horario-grid {
+        display:grid;
+        grid-template-columns:repeat(14, minmax(82px, 1fr));
+        gap:12px;
+        margin:0;
+    }
+    .horario-card {
+        min-height:122px;
+        background:rgba(10,24,49,.72);
+        border:1px solid rgba(98,149,228,.22);
+        border-radius:12px;
+        padding:14px 12px;
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+        display:flex;
+        flex-direction:column;
+        justify-content:space-between;
+    }
+    .horario-card .fluxo {
+        color:#fff;
+        font-weight:800;
+        font-size:.98rem;
+        background:linear-gradient(135deg,#2f9bff,#2530d0);
+        display:inline-block;
+        padding:5px 9px;
+        border-radius:7px;
+        width:max-content;
+        box-shadow:0 0 16px rgba(47,155,255,.18);
+    }
+    .horario-card .hora { color:#eef5ff; font-size:1.02rem; font-weight:800; margin-top:12px; }
+    .horario-card .dia { color:#4da9ff; font-weight:800; font-size:.77rem; margin-top:6px; }
+    .mini-line { height:5px; width:54px; border-radius:99px; background:rgba(160,181,222,.22); margin-top:10px; overflow:hidden; }
+    .mini-line span { display:block; width:22%; height:100%; background:#2f9bff; border-radius:99px; }
+
+    label, [data-testid="stWidgetLabel"] p { color:#eef5ff !important; font-weight:700 !important; }
+
+    [data-testid="stTextInput"] input,
+    [data-testid="stMultiSelect"] div[data-baseweb="select"] > div,
+    [data-baseweb="select"] > div {
+        background:rgba(8,15,32,.78) !important;
+        border:1px solid rgba(109,154,220,.34) !important;
+        border-radius:10px !important;
+        color:white !important;
+        min-height:48px;
+        box-shadow:inset 0 0 0 1px rgba(255,255,255,.02);
+    }
+    [data-testid="stTextInput"] input:focus {
+        border-color:rgba(58,156,255,.85) !important;
+        box-shadow:0 0 0 3px rgba(58,156,255,.18) !important;
     }
 
-    .step-label {
-        color: #aaa;
-        font-size: 0.78rem;
-        font-family: 'DM Sans', sans-serif;
+    div[data-testid="stButton"] > button,
+    div[data-testid="stDownloadButton"] > button {
+        min-height:54px;
+        border-radius:12px !important;
+        border:1px solid rgba(91,84,255,.65) !important;
+        background:linear-gradient(90deg,rgba(44,28,127,.96),rgba(21,55,137,.95)) !important;
+        color:#fff !important;
+        font-weight:800 !important;
+        box-shadow:0 0 26px rgba(65,60,255,.22), inset 0 1px 0 rgba(255,255,255,.10);
+        transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    div[data-testid="stButton"] > button:hover,
+    div[data-testid="stDownloadButton"] > button:hover {
+        transform:translateY(-2px);
+        border-color:rgba(81,171,255,.85) !important;
+        box-shadow:0 0 34px rgba(50,145,255,.30), inset 0 1px 0 rgba(255,255,255,.14);
     }
 
-    .step-arrow {
-        color: #1a3a5c;
-        font-size: 1rem;
-        font-weight: 700;
+    .retroativo-btn > div[data-testid="stButton"] > button {
+        width:auto !important;
+        min-height:44px !important;
+        padding:.45rem 1.2rem !important;
+        background:rgba(16,55,111,.72) !important;
+        color:#dceaff !important;
+        border:1px solid rgba(77,159,255,.32) !important;
     }
 
-    .badge {
-        display: inline-block;
-        background: #0f1e35;
-        border: 1px solid #1e5fad;
-        color: #4d9de0;
-        font-family: 'Space Mono', monospace;
-        font-size: 0.7rem;
-        padding: 0.15rem 0.5rem;
-        border-radius: 20px;
-        margin-right: 0.3rem;
+    [data-testid="stAlert"] {
+        border-radius:12px !important;
+        border:1px solid rgba(75,151,255,.20) !important;
+        background:rgba(8,25,49,.46) !important;
+        box-shadow:none !important;
+    }
+
+    hr { border-color:rgba(75,151,255,.24) !important; margin:1.8rem 0 !important; }
+
+    .section-card {
+        border:1px solid rgba(73,150,255,.18);
+        border-radius:20px;
+        background:rgba(4,12,28,.34);
+        padding:24px;
+        margin:20px 0 24px;
+    }
+
+    .broadcast-footer {
+        display:flex;
+        justify-content:flex-end;
+        align-items:center;
+        gap:10px;
+        color:#eef4ff;
+        font-size:.84rem;
+        margin-top:24px;
+    }
+    .broadcast-footer span {
+        background:rgba(255,255,255,.08);
+        border-radius:999px;
+        padding:5px 12px;
+        font-weight:800;
+    }
+
+    @media (max-width:1100px) {
+        .horario-grid { grid-template-columns:repeat(4, minmax(110px, 1fr)); }
+        .steps-bar { grid-template-columns:1fr; }
+        .step-arrow { display:none; }
+    }
+    @media (max-width:800px) {
+        .block-container,[data-testid="stMainBlockContainer"] { width:calc(100% - 1rem) !important; padding:1rem !important; margin:1rem auto !important; }
+        .broadcast-panel { padding:24px 20px; }
+        .broadcast-top { display:grid; grid-template-columns:1fr; }
+        .broadcast-title { font-size:1.55rem; }
+        .horario-grid { grid-template-columns:repeat(2, minmax(110px, 1fr)); }
     }
 </style>
 """, unsafe_allow_html=True)
-
 
 # ─── FUNÇÕES ──────────────────────────────────────────────────────────
 
@@ -623,32 +738,51 @@ H_MAP = {
 
 # ─── INTERFACE ────────────────────────────────────────────────────────
 
-st.markdown('<div class="main-header">📦 CESS · Gerador de Broadcast</div>', unsafe_allow_html=True)
-
-st.markdown("""
-<div class="steps-bar">
-  <div class="step"><span class="step-num">1</span><span class="step-label">Digite a data da segunda-feira</span></div>
-  <div class="step-arrow">→</div>
-  <div class="step"><span class="step-num">2</span><span class="step-label">Selecione os cursos e o fluxo</span></div>
-  <div class="step-arrow">→</div>
-  <div class="step"><span class="step-num">3</span><span class="step-label">Clique em Gerar Pacote ZIP</span></div>
-  <div class="step-arrow">→</div>
-  <div class="step"><span class="step-num">4</span><span class="step-label">Baixe e importe no UnniChat</span></div>
+st.markdown(f"""
+<div class="broadcast-panel">
+    <div class="broadcast-top">
+        <div class="broadcast-brand">
+            <div class="broadcast-logo-wrap"><img src="data:image/png;base64,{__import__('base64').b64encode(open(LOGO_PATH, 'rb').read()).decode() if os.path.exists(LOGO_PATH) else ''}" alt="Logo Broadcast"></div>
+            <div>
+                <h1 class="broadcast-title">CESS · Gerador de Broadcast</h1>
+                <div class="broadcast-subtitle">Crie e envie mensagens para seus cursos de forma rápida e eficiente.</div>
+            </div>
+        </div>
+        <div class="broadcast-badge">CESS Broadcast System · 2026</div>
+    </div>
+    <div class="steps-bar">
+      <div class="step"><span class="step-num">1</span><span class="step-label">Digite a data da segunda-feira</span></div>
+      <div class="step-arrow">→</div>
+      <div class="step"><span class="step-num">2</span><span class="step-label">Selecione os cursos e o fluxo</span></div>
+      <div class="step-arrow">→</div>
+      <div class="step"><span class="step-num">3</span><span class="step-label">Clique em Gerar Pacote ZIP</span></div>
+      <div class="step-arrow">→</div>
+      <div class="step"><span class="step-num">4</span><span class="step-label">Baixe e importe no UnniChat</span></div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
 # Cronograma visual
-st.markdown("**Cronograma de Fluxos**")
-cols = st.columns(14)
-for col_idx, (f_num, (h, m, dia)) in enumerate(H_MAP.items()):
-    with cols[col_idx]:
-        st.markdown(f"""
-        <div class="horario-card">
-            <div class="fluxo">{'F' + str(f_num) if isinstance(f_num, int) or f_num in ['2.1', '5.1'] else f_num}</div>
-            <div class="hora">{h:02d}:{m:02d}</div>
-            <div class="dia">{dia}</div>
-        </div>
-        """, unsafe_allow_html=True)
+cards_html = []
+for f_num, (h, m, dia) in H_MAP.items():
+    label_fluxo = 'F' + str(f_num) if isinstance(f_num, int) or f_num in ['2.1', '5.1'] else f_num
+    cards_html.append(
+        f'<div class="horario-card">'
+        f'<div>'
+        f'<div class="fluxo">{label_fluxo}</div>'
+        f'<div class="hora">{h:02d}:{m:02d}</div>'
+        f'<div class="dia">{dia}</div>'
+        f'</div>'
+        f'<div class="mini-line"><span></span></div>'
+        f'</div>'
+    )
+
+st.markdown(f"""
+<div class="schedule-shell">
+    <div class="schedule-title">📅 Cronograma de Fluxos</div>
+    <div class="horario-grid">{''.join(cards_html)}</div>
+</div>
+""", unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -656,30 +790,7 @@ st.markdown("---")
 if "modo_retroativo" not in st.session_state:
     st.session_state.modo_retroativo = False
 
-# ── Estilo do botão Retroativo ───────────────────────────────────────────
-st.markdown("""
-<style>
-.retroativo-btn > div[data-testid="stButton"] > button {
-    background: transparent !important;
-    color: #4d9de0 !important;
-    border: 1px solid #1e5fad !important;
-    font-family: 'Space Mono', monospace !important;
-    font-size: 0.72rem !important;
-    font-weight: 400 !important;
-    padding: 0.2rem 0.75rem !important;
-    width: auto !important;
-    min-height: unset !important;
-    line-height: 1.4 !important;
-    letter-spacing: 0.3px !important;
-    margin-top: 0.25rem !important;
-}
-.retroativo-btn > div[data-testid="stButton"] > button:hover {
-    background: #0f1e35 !important;
-    opacity: 1 !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
+# ── Layout de entrada ───────────────────────────────────────────
 col_in, col_cfg = st.columns([1, 2])
 
 with col_in:
@@ -872,3 +983,4 @@ with col_cfg:
                     )
             else:
                 st.warning(f"⚠️ Nenhum curso encontrado para a semana de **{data_ref}**. Verifique a data e a planilha.")
+st.markdown("""<div class="broadcast-footer"><strong>CESS Broadcast System</strong><span>2026</span><div>Versão Web Estável</div></div>""", unsafe_allow_html=True)
