@@ -1,6 +1,4 @@
 import streamlit as st
-import gspread
-from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import json
@@ -9,7 +7,14 @@ import io
 import random
 import string
 import os
+import sys
 from PIL import Image
+from firebase_client import buscar_aberturas_por_semana
+
+# Garante imports locais quando o Streamlit inicia por outro diretório
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO_PATH = os.path.join(BASE_DIR, "logo-broadcast.png")
@@ -305,133 +310,123 @@ def gerar_id_aleatorio(tamanho=20):
     return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(tamanho))
 
 
-@st.cache_resource(show_spinner=False)
-def conectar_sheets():
-    """Conecta ao Google Sheets usando st.secrets (deploy seguro)."""
-    scope = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
+def data_curta(semana):
+    """Converte '13/04/2026' para '13/04'."""
+    if not semana:
+        return ""
+
+    partes = str(semana).split("/")
+    if len(partes) >= 2:
+        return f"{partes[0].zfill(2)}/{partes[1].zfill(2)}"
+
+    return str(semana)
+
+
+def normalizar_semana_para_firestore(semana_alvo: str) -> str:
+    """
+    Normaliza a data digitada na tela para o formato salvo em aberturas.
+
+    Ex:
+      13/04       -> 13/04/2026
+      13/04/2026  -> 13/04/2026
+    """
+    semana = str(semana_alvo or "").strip()
+
+    if not semana:
+        return ""
+
+    partes = [p.strip() for p in semana.split("/") if p.strip()]
+
+    if len(partes) == 2:
+        dia, mes = partes
+        return f"{dia.zfill(2)}/{mes.zfill(2)}/2026"
+
+    if len(partes) == 3:
+        dia, mes, ano = partes
+        return f"{dia.zfill(2)}/{mes.zfill(2)}/{ano}"
+
+    return semana
+
+
+def montar_tags_broadcast(nome_curso: str, semana_curta: str) -> dict:
+    """
+    Monta as tags que antes vinham das colunas O:V da planilha.
+    Mantém o mesmo padrão usado nos fluxos do UnniChat.
+    """
+    return {
+        1: f"Iniciar F. - {nome_curso} {semana_curta}",
+        2: f"Fluxo 2 - {nome_curso} {semana_curta}",
+        3: f"Fluxo 3 - {nome_curso} {semana_curta}",
+        4: f"Fluxo 4 - {nome_curso} {semana_curta}",
+        5: f"Fluxo 5 - {nome_curso} {semana_curta}",
+        6: f"Fluxo 6 - {nome_curso} {semana_curta}",
+        7: f"Fluxo 7 - {nome_curso} {semana_curta}",
+        8: f"Fluxo 8 - {nome_curso} {semana_curta}",
+    }
+
+
+def normalizar_conta_api(valor: str) -> str:
+    """
+    Define a pasta da conta no ZIP.
+
+    Antes a conta vinha pela cor da linha da planilha.
+    Agora vem do campo contaAPI em aberturas.
+    """
+    conta = str(valor or "").strip()
+
+    if not conta:
+        return "Sem_Conta"
+
+    # Mantém nomes já padronizados, caso existam.
+    if conta.startswith("Conta_"):
+        return conta
+
+    # Remove espaços e caracteres ruins para pasta.
+    conta = conta.replace(" ", "_").replace("/", "-").replace("\\", "-").replace(":", "")
+    return conta or "Sem_Conta"
+
+
+def buscar_cursos_banco(semana_alvo: str):
+    """
+    Busca os cursos na coleção aberturas do Cess-Hub/Firestore.
+
+    Retorno compatível com o restante do Broadcast:
+    [
+      {
+        "nome": "...",
+        "tags": {1: "...", 2: "..."},
+        "conta": "...",
+        "abertura": {...}
+      }
     ]
-    creds_dict = dict(st.secrets["gcp_service_account"])
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-    return gspread.authorize(creds)
-
-
-
-
-def _rgb_para_hex(bg: dict) -> str:
-    """Converte o RGB retornado pela API do Google Sheets para #RRGGBB."""
-    r = round(bg.get("red", 1) * 255)
-    g = round(bg.get("green", 1) * 255)
-    b = round(bg.get("blue", 1) * 255)
-    return f"#{r:02X}{g:02X}{b:02X}"
-
-
-def _buscar_cores_api(client, spreadsheet_id: str, range_str: str) -> list:
-    """Busca as cores de fundo de um intervalo usando a API v4 do Google Sheets."""
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}"
-    response = client.http_client.request(
-        "GET",
-        url,
-        params={
-            "ranges": range_str,
-            "fields": "sheets.data.rowData.values.effectiveFormat.backgroundColor",
-            "includeGridData": "true",
-        },
-    )
-    try:
-        return response.json()["sheets"][0]["data"][0].get("rowData", [])
-    except (KeyError, IndexError, ValueError):
-        return []
-
-
-def buscar_mapeamento_contas(client, spreadsheet_name: str) -> dict:
     """
-    Lê as cores de D2:D5 da aba 'Como funciona?' e monta:
-    { '#RRGGBB': 'Conta_1', '#RRGGBB': 'Conta_2', ... }
-    """
-    spreadsheet = client.open(spreadsheet_name)
-    row_data = _buscar_cores_api(client, spreadsheet.id, "'Como funciona?'!D2:D5")
-
-    mapeamento = {}
-    for i, row in enumerate(row_data, start=1):
-        try:
-            bg = row["values"][0]["effectiveFormat"]["backgroundColor"]
-            hex_cor = _rgb_para_hex(bg)
-            if hex_cor != "#FFFFFF":
-                mapeamento[hex_cor] = f"Conta_{i}"
-        except (KeyError, IndexError, TypeError):
-            pass
-
-    return mapeamento
-
-
-def buscar_cores_linhas(client, spreadsheet_name: str, worksheet_name: str, linha_inicio_sheet: int, quantidade: int) -> list:
-    """Retorna as cores da coluna A nas linhas dos cursos encontrados."""
-    spreadsheet = client.open(spreadsheet_name)
-    linha_fim = linha_inicio_sheet + quantidade - 1
-    range_str = f"'{worksheet_name}'!A{linha_inicio_sheet}:A{linha_fim}"
-    row_data = _buscar_cores_api(client, spreadsheet.id, range_str)
-
-    cores = []
-    for row in row_data:
-        try:
-            bg = row["values"][0]["effectiveFormat"]["backgroundColor"]
-            hex_cor = _rgb_para_hex(bg)
-        except (KeyError, IndexError, TypeError):
-            hex_cor = "#FFFFFF"
-        cores.append(hex_cor)
-
-    while len(cores) < quantidade:
-        cores.append("#FFFFFF")
-
-    return cores[:quantidade]
-
-def buscar_cursos_planilha(semana_alvo: str):
     try:
-        client = conectar_sheets()
-        aba = client.open("Informações Webhook").worksheet("Cursos 2026")
-        dados = aba.get_all_values()
-
-        linha_data = next(
-            (i for i, l in enumerate(dados) if len(l) > 1 and semana_alvo in str(l[1])),
-            None
-        )
-        if linha_data is None:
-            return []
+        semana_firestore = normalizar_semana_para_firestore(semana_alvo)
+        aberturas = buscar_aberturas_por_semana(semana_firestore)
 
         cursos = []
-        indices_linhas = []
-        for i in range(linha_data + 2, len(dados)):
-            linha = dados[i]
-            if not linha or not linha[0].strip():
-                break
-            if len(linha) > 1 and "Semana" in str(linha[1]) and i > linha_data + 2:
-                break
+
+        for abertura in aberturas:
+            nome = str(abertura.get("nomeCurso", "") or "").strip()
+
+            if not nome:
+                continue
+
+            semana_doc = abertura.get("semana") or semana_firestore
+            semana_tag = data_curta(semana_doc)
+
             cursos.append({
-                "nome": linha[0].strip(),
-                "tags": {f: linha[13 + f].strip() if len(linha) > 13 + f else "" for f in range(1, 9)}
+                "nome": nome,
+                "tags": montar_tags_broadcast(nome, semana_tag),
+                "conta": normalizar_conta_api(abertura.get("contaAPI")),
+                "abertura": abertura,
             })
-            indices_linhas.append(i)
 
-        if cursos:
-            mapeamento_contas = buscar_mapeamento_contas(client, "Informações Webhook")
-            cores_linhas = buscar_cores_linhas(
-                client,
-                "Informações Webhook",
-                "Cursos 2026",
-                indices_linhas[0] + 1,
-                len(cursos),
-            )
-
-            for curso, cor in zip(cursos, cores_linhas):
-                curso["cor"] = cor
-                curso["conta"] = mapeamento_contas.get(cor, "Sem_Conta")
-
+        cursos.sort(key=lambda item: item["nome"].casefold())
         return cursos
 
     except Exception as e:
-        st.error(f"❌ Erro ao ler planilha: {e}")
+        st.error(f"❌ Erro ao buscar dados no Cess-Hub: {e}")
         return []
 
 
@@ -797,9 +792,9 @@ with col_in:
     # Campo de data — sempre presente
     if st.session_state.modo_retroativo:
         ret_busca = st.text_input(
-            "Nome da semana na planilha",
-            placeholder="ex: Retroativo - T 2025",
-            help="Digite o nome exato da semana como aparece na coluna B da planilha."
+            "Semana no Cess-Hub",
+            placeholder="DD/MM  ex: 15/06",
+            help="Digite a semana no formato DD/MM ou DD/MM/AAAA."
         )
         ret_data = st.text_input(
             "Dia do disparo",
@@ -831,8 +826,8 @@ with col_cfg:
     # ── MODO RETOMADA ──────────────────────────────────────────────────
     if st.session_state.modo_retroativo:
         if ret_busca:
-            with st.spinner("Buscando cursos na planilha..."):
-                lista_ret = buscar_cursos_planilha(ret_busca)
+            with st.spinner("Buscando cursos no Cess-Hub..."):
+                lista_ret = buscar_cursos_banco(ret_busca)
 
             if lista_ret:
                 st.success(f"✅ {len(lista_ret)} curso(s) encontrado(s) para **{ret_busca}**")
@@ -899,13 +894,13 @@ with col_cfg:
                         mime="application/zip"
                     )
             else:
-                st.warning(f"⚠️ Nenhum curso encontrado para **{ret_busca}**. Verifique o nome na planilha.")
+                st.warning(f"⚠️ Nenhum curso encontrado para **{ret_busca}**. Verifique a semana no Cess-Hub.")
 
     # ── MODO FLUXO NORMAL ──────────────────────────────────────────────
     else:
         if data_ref:
-            with st.spinner("Buscando cursos na planilha..."):
-                lista = buscar_cursos_planilha(data_ref)
+            with st.spinner("Buscando cursos no Cess-Hub..."):
+                lista = buscar_cursos_banco(data_ref)
 
             if lista:
                 st.success(f"✅ {len(lista)} curso(s) encontrado(s) para a semana de **{data_ref}**")
@@ -982,5 +977,5 @@ with col_cfg:
                         mime="application/zip"
                     )
             else:
-                st.warning(f"⚠️ Nenhum curso encontrado para a semana de **{data_ref}**. Verifique a data e a planilha.")
+                st.warning(f"⚠️ Nenhum curso encontrado para a semana de **{data_ref}**. Verifique a data no Cess-Hub.")
 st.markdown("""<div class="broadcast-footer"><strong>CESS Broadcast System</strong><span>2026</span><div>Versão Web Estável</div></div>""", unsafe_allow_html=True)
