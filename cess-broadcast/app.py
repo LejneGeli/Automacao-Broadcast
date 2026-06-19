@@ -548,15 +548,15 @@ RETROATIVOS_BROADCAST = {
     },
     "SC5 Retroativo": {
         "nome_prefixo": "SC5",
-        "pasta": "SC5_Retroativo",
-        "arquivo": "SC5_Retroativo",
+        "pasta": "SC5",
+        "arquivo": "SC5",
         "tag_prefixo": "Super Chance - SC5",
     },
 }
 
 
 def montar_json_retomada(nome: str, timestamp: int, data_disparo: str, tag_prefixo: str = "Super Chance - Retroativo") -> dict:
-    """Estrutura Retroativo/SC5 Retroativo: add_tag '<prefixo> DD/MM' → fowardAutomation."""
+    """Estrutura Retroativo/SC5: add_tag '<prefixo> DD/MM' → fowardAutomation."""
     id_root   = gerar_id_aleatorio()
     id_action = gerar_id_aleatorio()
     id_foward = gerar_id_aleatorio()
