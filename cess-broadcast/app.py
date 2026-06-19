@@ -539,12 +539,28 @@ def intervalo_retroativo(total_cursos: int) -> int:
         return 40    # 40s
 
 
-def montar_json_retomada(nome: str, timestamp: int, data_disparo: str) -> dict:
-    """Estrutura Retroativo: add_tag 'Super Chance - Retroativo DD/MM' → fowardAutomation."""
+RETROATIVOS_BROADCAST = {
+    "Retroativo": {
+        "nome_prefixo": "Retroativo",
+        "pasta": "Retroativo",
+        "arquivo": "Retroativo",
+        "tag_prefixo": "Super Chance - Retroativo",
+    },
+    "SC5 Retroativo": {
+        "nome_prefixo": "SC5 Retroativo",
+        "pasta": "SC5_Retroativo",
+        "arquivo": "SC5_Retroativo",
+        "tag_prefixo": "Super Chance - SC5 Retroativo",
+    },
+}
+
+
+def montar_json_retomada(nome: str, timestamp: int, data_disparo: str, tag_prefixo: str = "Super Chance - Retroativo") -> dict:
+    """Estrutura Retroativo/SC5 Retroativo: add_tag '<prefixo> DD/MM' → fowardAutomation."""
     id_root   = gerar_id_aleatorio()
     id_action = gerar_id_aleatorio()
     id_foward = gerar_id_aleatorio()
-    tag = f"Super Chance - Retroativo {data_disparo}"
+    tag = f"{tag_prefixo} {data_disparo}"
     return {
         "status": "draft",
         "sendType": "scheduled",
@@ -791,6 +807,12 @@ col_in, col_cfg = st.columns([1, 2])
 with col_in:
     # Campo de data — sempre presente
     if st.session_state.modo_retroativo:
+        tipo_retroativo = st.selectbox(
+            "Tipo de retroativo",
+            list(RETROATIVOS_BROADCAST.keys()),
+            key="tipo_retroativo_broadcast",
+            help="Escolha se o broadcast será Retroativo padrão ou SC5 Retroativo."
+        )
         ret_busca = st.text_input(
             "Semana no Cess-Hub",
             placeholder="DD/MM  ex: 15/06",
@@ -813,6 +835,7 @@ with col_in:
             help="Digite a data da segunda-feira da semana que deseja gerar."
         )
         ret_busca = ret_data = ret_hora = None
+        tipo_retroativo = "Retroativo"
 
     # Botão sempre por último na coluna esquerda
     st.markdown('<div class="retroativo-btn">', unsafe_allow_html=True)
@@ -838,11 +861,13 @@ with col_cfg:
                     help="Deixe em branco para incluir todos os cursos."
                 )
 
+                cfg_retroativo = RETROATIVOS_BROADCAST[tipo_retroativo]
+
                 campos_ok = ret_data and ret_hora
                 if not campos_ok:
                     st.info("Preencha o dia e o horário de disparo para gerar.")
 
-                if campos_ok and st.button("Gerar Pacote ZIP — Retroativo"):
+                if campos_ok and st.button(f"Gerar Pacote ZIP — {tipo_retroativo}"):
                     try:
                         d_ret, m_ret = map(int, ret_data.strip().split("/"))
                         h_ret, min_ret = map(int, ret_hora.strip().split(":"))
@@ -876,21 +901,29 @@ with col_cfg:
                             contador_delay_conta = contadores_por_conta.get(conta_pasta, 0)
 
                             dt = datetime(2026, m_ret, d_ret, h_ret, min_ret, tzinfo=BRASILIA) + timedelta(seconds=(contador_delay_conta * intervalo_s))
-                            nome_final = f"Retroativo {ret_data} - {c_data['nome']}"
-                            json_obj = montar_json_retomada(nome_final, int(dt.timestamp() * 1000), ret_data)
+                            nome_final = f"{cfg_retroativo['nome_prefixo']} {ret_data} - {c_data['nome']}"
+                            json_obj = montar_json_retomada(
+                                nome_final,
+                                int(dt.timestamp() * 1000),
+                                ret_data,
+                                cfg_retroativo["tag_prefixo"]
+                            )
                             nome_arq = nome_final.replace("/", "_")
-                            zf.writestr(f"Retroativo/{conta_pasta}/{nome_arq}.json", json.dumps(json_obj, indent=2, ensure_ascii=False))
+                            zf.writestr(
+                                f"{cfg_retroativo['pasta']}/{conta_pasta}/{nome_arq}.json",
+                                json.dumps(json_obj, indent=2, ensure_ascii=False)
+                            )
 
                             contadores_por_conta[conta_pasta] = contador_delay_conta + 1
                             counter += 1
                             progresso.progress(counter / total, text=f"Gerando: {nome_final}")
 
                     progresso.empty()
-                    st.success(f"✅ {counter} arquivo(s) de Retroativo gerado(s) com sucesso!")
+                    st.success(f"✅ {counter} arquivo(s) de {tipo_retroativo} gerado(s) com sucesso!")
                     st.download_button(
                         label="Baixar ZIP para Importação",
                         data=zip_buffer.getvalue(),
-                        file_name=f"Import_CESS_Retroativo_{ret_data.replace('/', '_')}.zip",
+                        file_name=f"Import_CESS_{cfg_retroativo['arquivo']}_{ret_data.replace('/', '_')}.zip",
                         mime="application/zip"
                     )
             else:
