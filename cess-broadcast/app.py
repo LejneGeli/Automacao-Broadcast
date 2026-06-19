@@ -547,10 +547,10 @@ RETROATIVOS_BROADCAST = {
         "tag_prefixo": "Super Chance - Retroativo",
     },
     "SC5 Retroativo": {
-        "nome_prefixo": "SC5 Retroativo",
+        "nome_prefixo": "SC5",
         "pasta": "SC5_Retroativo",
         "arquivo": "SC5_Retroativo",
-        "tag_prefixo": "Super Chance - SC5 Retroativo",
+        "tag_prefixo": "Super Chance - SC5",
     },
 }
 
