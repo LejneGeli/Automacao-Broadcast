@@ -181,7 +181,7 @@ st.markdown("""
     }
     .horario-grid {
         display:grid;
-        grid-template-columns:repeat(14, minmax(82px, 1fr));
+        grid-template-columns:repeat(15, minmax(82px, 1fr));
         gap:12px;
         margin:0;
     }
@@ -362,6 +362,7 @@ def montar_tags_broadcast(nome_curso: str, semana_curta: str) -> dict:
         6: f"Fluxo 6 - {nome_curso} {semana_curta}",
         7: f"Fluxo 7 - {nome_curso} {semana_curta}",
         8: f"Fluxo 8 - {nome_curso} {semana_curta}",
+        "SC4": f"SC4 - {nome_curso} {semana_curta}",
     }
 
 
@@ -478,7 +479,7 @@ def montar_json_unnichat(nome: str, timestamp: int, tag_gatilho: str) -> dict:
 
 
 def montar_json_foward(nome: str, timestamp: int) -> dict:
-    """Estrutura fowardAutomation (F2.1 e F5.1): encaminha para outra automação."""
+    """Estrutura fowardAutomation (F2.1, F5.1 e SC4): encaminha para outra automação."""
     id_root = gerar_id_aleatorio()
     id_foward = gerar_id_aleatorio()
     return {
@@ -728,7 +729,7 @@ def montar_json_sc(nome: str, timestamp: int) -> dict:
 
 # ─── CRONOGRAMA ───────────────────────────────────────────────────────
 OFFSETS = {1: 0, 2: 1, "2.1": 1, 3: 1, 4: 2, 5: 2, "5.1": 2, 6: 2, 7: 2, 8: 3,
-           "SC0": 3, "SC1": 8, "SC2": 17, "SC3": 24}
+           "SC0": 3, "SC1": 8, "SC2": 17, "SC3": 24, "SC4": 4}
 H_MAP = {
     1:     (10, 30, "Segunda"),
     2:     (8,  0,  "Terça"),
@@ -744,6 +745,7 @@ H_MAP = {
     "SC1": (9,  0,  "Terça +1sem"),
     "SC2": (9,  0,  "Quinta +2sem"),
     "SC3": (9,  30, "Quinta +3sem"),
+    "SC4": (12, 0,  "Sexta"),
 }
 
 
@@ -949,7 +951,7 @@ with col_cfg:
                 with col_b:
                     fluxo_sel = st.selectbox(
                         "Fluxo",
-                        ["Todos", "F1", "F2", "F2.1", "F3", "F4", "F5", "F5.1", "F6", "F7", "F8", "SC0", "SC1", "SC2", "SC3"]
+                        ["Todos", "F1", "F2", "F2.1", "F3", "F4", "F5", "F5.1", "F6", "F7", "F8", "SC0", "SC1", "SC2", "SC3", "SC4"]
                     )
 
                 if st.button("Gerar Pacote ZIP"):
@@ -985,7 +987,12 @@ with col_cfg:
                                 dt += timedelta(minutes=(contador_delay_conta * 2))
 
                                 nome_final = f"{data_ref} - F{f_num} - {c_data['nome']}"
-                                if f_num in ("SC0", "SC1", "SC2", "SC3"):
+                                if f_num == "SC4":
+                                    # SC4 segue a mesma estrutura do broadcast F2.1/F5.1:
+                                    # apenas encaminha o contato para a automação SC4 já importada.
+                                    nome_final = f"SC4 {data_ref} - {c_data['nome']}"
+                                    json_obj = montar_json_foward(nome_final, int(dt.timestamp() * 1000))
+                                elif f_num in ("SC0", "SC1", "SC2", "SC3"):
                                     nome_final = f"{f_num} {data_ref} - {c_data['nome']}"
                                     json_obj = montar_json_sc(nome_final, int(dt.timestamp() * 1000))
                                 elif f_num in ("2.1", "5.1"):
