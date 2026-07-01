@@ -22,7 +22,7 @@ FAVICON = Image.open(LOGO_PATH) if os.path.exists(LOGO_PATH) else "📦"
 
 BRASILIA = ZoneInfo("America/Sao_Paulo")
 
-# ─── CONFIG DA PÁGINA ────────────────────────────────────────────────
+# CONFIG DA PÁGINA 
 st.set_page_config(
     page_title="CESS · Gerador de Broadcast",
     page_icon=FAVICON,
@@ -30,7 +30,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ─── ESTILO CUSTOMIZADO ───────────────────────────────────────────────
+# ESTILO CUSTOMIZADO 
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -304,7 +304,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ─── FUNÇÕES ──────────────────────────────────────────────────────────
+# FUNÇÕES 
 
 def gerar_id_aleatorio(tamanho=20):
     return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(tamanho))
@@ -727,7 +727,7 @@ def montar_json_sc(nome: str, timestamp: int) -> dict:
     }
 
 
-# ─── CRONOGRAMA ───────────────────────────────────────────────────────
+# CRONOGRAMA 
 OFFSETS = {1: 0, 2: 1, "2.1": 1, 3: 1, 4: 2, 5: 2, "5.1": 2, 6: 2, 7: 2, 8: 3,
            "SC0": 3, "SC1": 8, "SC2": 17, "SC3": 24, "SC4": 4}
 H_MAP = {
@@ -749,7 +749,7 @@ H_MAP = {
 }
 
 
-# ─── INTERFACE ────────────────────────────────────────────────────────
+# INTERFACE 
 
 st.markdown(f"""
 <div class="broadcast-panel">
@@ -799,11 +799,11 @@ st.markdown(f"""
 
 st.markdown("---")
 
-# ── Session state ─────────────────────────────────────────────────────
+# Session state 
 if "modo_retroativo" not in st.session_state:
     st.session_state.modo_retroativo = False
 
-# ── Layout de entrada ───────────────────────────────────────────
+# Layout de entrada 
 col_in, col_cfg = st.columns([1, 2])
 
 with col_in:
@@ -848,7 +848,7 @@ with col_in:
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col_cfg:
-    # ── MODO RETOMADA ──────────────────────────────────────────────────
+    # MODO RETOMADA 
     if st.session_state.modo_retroativo:
         if ret_busca:
             with st.spinner("Buscando cursos no Cess-Hub..."):
@@ -931,7 +931,7 @@ with col_cfg:
             else:
                 st.warning(f"⚠️ Nenhum curso encontrado para **{ret_busca}**. Verifique a semana no Cess-Hub.")
 
-    # ── MODO FLUXO NORMAL ──────────────────────────────────────────────
+    # MODO FLUXO NORMAL
     else:
         if data_ref:
             with st.spinner("Buscando cursos no Cess-Hub..."):
